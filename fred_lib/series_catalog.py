@@ -7,7 +7,7 @@ variação % em 12 meses, não como nível bruto.
 
 CATALOGO = {
     "Crescimento": [
-        {"id": "GDPC1", "nome": "Real Gross Domestic Product", "nota": "Trimestral, taxa anualizada", "destaque": True},
+        {"id": "GDPC1", "nome": "Real Gross Domestic Product", "nota": "Trimestral, variação % vs. mesmo trimestre do ano anterior", "tipo": "indice", "destaque": True},
         {"id": "INDPRO", "nome": "Industrial Production: Total Index", "nota": "Mensal", "tipo": "indice"},
     ],
     "Inflação": [
