@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from datetime import date, timedelta
 
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -9,7 +10,7 @@ RAIZ_PROJETO = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ_PROJETO))
 
 from fred_lib import client, excel_export, html_export
-from fred_lib.series_catalog import CATALOGO, url_serie
+from fred_lib.series_catalog import CATALOGO, listar_destaques, url_serie
 
 st.set_page_config(page_title="Cenário Econômico EUA", layout="wide", page_icon="📊")
 
@@ -128,6 +129,40 @@ aba_overview, aba_explorador, aba_exportar = st.tabs(
 )
 
 with aba_overview:
+    st.subheader("Resumo — principais indicadores")
+    linhas_resumo = []
+    for s in listar_destaques():
+        e_indice = s.get("tipo") == "indice"
+        try:
+            serie = _buscar_serie_cache(
+                s["id"], inicio, None, "pc1" if e_indice else None
+            ).dropna()
+        except Exception:
+            continue
+        if serie.empty:
+            continue
+        sufixo = "%" if e_indice else ""
+        ultimo = serie.iloc[-1]
+        anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
+        linhas_resumo.append(
+            {
+                "Indicador": s["nome"],
+                "Categoria": s["categoria"],
+                "Valor": f"{ultimo:,.2f}{sufixo}",
+                "Variação": ultimo - anterior,
+            }
+        )
+
+    if linhas_resumo:
+        df_resumo = pd.DataFrame(linhas_resumo)
+        estilo = df_resumo.style.format({"Variação": "{:+,.2f}"}).map(
+            lambda v: f"color: {'#1E7D32' if v >= 0 else '#C62828'}; font-weight: 600",
+            subset=["Variação"],
+        )
+        st.dataframe(estilo, use_container_width=True, hide_index=True)
+
+    st.divider()
+
     for categoria, series in CATALOGO.items():
         st.subheader(categoria)
         cols = st.columns(len(series))
