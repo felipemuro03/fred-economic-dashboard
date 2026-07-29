@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 
 _BASE_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
+_BUSCA_URL = "https://dadosabertos.bcb.gov.br/api/3/action/package_search"
 
 
 def buscar_serie(codigo, inicio=None, fim=None) -> pd.Series:
@@ -25,6 +26,40 @@ def buscar_serie(codigo, inicio=None, fim=None) -> pd.Series:
     df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
     df["valor"] = df["valor"].astype(float)
     return df.set_index("data")["valor"]
+
+
+def pesquisar_series(termo: str, limite: int = 20) -> list:
+    """Pesquisa séries do SGS por palavra-chave, via o portal de dados abertos do BCB.
+
+    Retorna uma lista de dicts {"id": codigo_sgs (int), "titulo": str, "unidade": str}.
+    Datasets do portal que não correspondem a uma série numérica simples do SGS
+    (sem "codigo_sgs" nos metadados) são descartados.
+    """
+    resposta = requests.get(
+        _BUSCA_URL, params={"q": termo, "rows": limite}, timeout=20
+    )
+    resposta.raise_for_status()
+    corpo = resposta.json()
+    if not corpo.get("success"):
+        return []
+
+    resultados = []
+    for item in corpo["result"]["results"]:
+        codigo_sgs = item.get("codigo_sgs")
+        if not codigo_sgs:
+            continue
+        try:
+            codigo = int(codigo_sgs)
+        except ValueError:
+            continue
+        resultados.append(
+            {
+                "id": codigo,
+                "titulo": item.get("title", f"Série {codigo}"),
+                "unidade": item.get("unidade_medida", ""),
+            }
+        )
+    return resultados
 
 
 def url_serie(codigo) -> str:

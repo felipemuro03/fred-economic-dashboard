@@ -71,6 +71,23 @@ def _buscar_serie_cache(codigo, inicio, fim):
     return client.buscar_serie(codigo, inicio=inicio, fim=fim)
 
 
+@st.cache_data(ttl=3600, show_spinner="Pesquisando séries...")
+def _pesquisar_cache(termo):
+    return client.pesquisar_series(termo)
+
+
+def _inferir_unidade(texto_unidade: str) -> dict:
+    """Melhor esforço pra séries achadas pelo Explorador, fora do catálogo curado."""
+    texto = (texto_unidade or "").lower()
+    if "percentual" in texto or texto.strip() == "%":
+        return {"badge": texto_unidade or "%", "tipo": "percentual"}
+    if "real" in texto or "r$" in texto:
+        return {"badge": texto_unidade, "tipo": "moeda", "simbolo": "R$"}
+    if "dólar" in texto or "dolar" in texto or "us$" in texto:
+        return {"badge": texto_unidade, "tipo": "moeda", "simbolo": "US$"}
+    return {"badge": texto_unidade or "Número", "tipo": "numero"}
+
+
 def _grafico_linha(serie, altura=150):
     fig = go.Figure(
         go.Scatter(x=serie.index, y=serie.values, mode="lines", line=dict(color=GOLD_ESCURO, width=2))
@@ -113,8 +130,8 @@ with st.sidebar:
             del st.session_state.selecionadas_br[sid]
             st.rerun()
 
-aba_overview, aba_consulta, aba_exportar = st.tabs(
-    ["Visão Geral", "Consultar código SGS", "Exportar"]
+aba_overview, aba_explorador, aba_exportar = st.tabs(
+    ["Visão Geral", "Explorador", "Exportar"]
 )
 
 with aba_overview:
@@ -195,12 +212,49 @@ with aba_overview:
                     }
                     st.rerun()
 
-with aba_consulta:
-    st.subheader("Consultar uma série pelo código SGS")
-    st.caption(
-        "Se você já souber o código de uma série do Banco Central (ex: 433 = IPCA "
-        "mensal), digite aqui para visualizar e, se quiser, adicionar à exportação."
+with aba_explorador:
+    st.subheader("Pesquisar qualquer série do Banco Central")
+    termo = st.text_input(
+        "Palavra-chave (ex: 'dívida', 'crédito', 'inadimplência', 'salário')",
+        key="termo_busca_br",
     )
+    if termo:
+        try:
+            resultados = _pesquisar_cache(termo)
+        except Exception as e:
+            st.error(f"Erro na busca: {e}")
+            resultados = []
+
+        if not resultados:
+            st.info("Nenhuma série encontrada.")
+        else:
+            for r in resultados:
+                with st.expander(f"{r['titulo']} ({r['id']})"):
+                    st.caption(f"Unidade: {r['unidade'] or '-'}")
+                    st.caption(f"[Ver dados brutos ↗]({series_catalog.url_serie(r['id'])})")
+                    if st.button("Ver gráfico e adicionar", key=f"explorar_br_{r['id']}"):
+                        try:
+                            serie = _buscar_serie_cache(r["id"], inicio, None).dropna()
+                        except Exception as e:
+                            st.error(f"Erro: {e}")
+                            serie = None
+                        if serie is not None and not serie.empty:
+                            st.plotly_chart(
+                                _grafico_linha(serie),
+                                use_container_width=True,
+                                key=f"explorar_br_chart_{r['id']}",
+                            )
+                            st.session_state.selecionadas_br[str(r["id"])] = {
+                                "nome": r["titulo"],
+                                "serie": serie,
+                                "nota": "",
+                                "url": series_catalog.url_serie(r["id"]),
+                                "unidade": _inferir_unidade(r["unidade"]),
+                            }
+                            st.success("Adicionado à exportação.")
+
+    st.divider()
+    st.subheader("Ou digite o código SGS diretamente")
     codigo_input = st.text_input("Código SGS", key="codigo_sgs_input")
     if codigo_input:
         try:
@@ -286,7 +340,7 @@ with aba_exportar:
     st.subheader("Excel com indicadores selecionados")
     if not st.session_state.selecionadas_br:
         st.info(
-            "Nenhuma série selecionada ainda. Adicione pela Visão Geral ou pela Consulta."
+            "Nenhuma série selecionada ainda. Adicione pela Visão Geral ou pelo Explorador."
         )
     else:
         st.write(f"{len(st.session_state.selecionadas_br)} série(s) selecionada(s):")
