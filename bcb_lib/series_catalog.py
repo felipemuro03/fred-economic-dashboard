@@ -37,7 +37,6 @@ CATALOGO = {
         {"id": 29034, "nome": "Comprometimento de Renda das Famílias com Serviço da Dívida", "nota": "Com ajuste sazonal", "unidade": _PCT},
         {"id": 4177, "nome": "Dívida Mobiliária Federal - Participação Over/Selic", "nota": "% da dívida em carteira, por indexador", "destaque": True, "unidade": _PCT},
         {"id": 4178, "nome": "Dívida Mobiliária Federal - Participação Prefixado", "nota": "% da dívida em carteira, por indexador", "destaque": True, "unidade": _PCT},
-        {"id": "ntnb_ipca_pct", "nome": "Dívida Mobiliária Federal - Participação IPCA (NTN-B)", "nota": "Calculado: saldo NTN-B (10642) ÷ saldo total em mercado (4154) — o BCB não publica um % pronto para esse indexador na série de participação", "formula": (10642, 4154), "destaque": True, "unidade": _PCT},
     ],
     "Externo": [
         {"id": 13621, "nome": "Reservas Internacionais", "nota": "Conceito caixa", "unidade": _USD_MI},

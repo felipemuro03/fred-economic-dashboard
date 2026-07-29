@@ -72,32 +72,22 @@ def _buscar_serie_cache(codigo, inicio, fim):
     return client.buscar_serie(codigo, inicio=inicio, fim=fim)
 
 
-@st.cache_data(ttl=3600, show_spinner="Calculando indicador...")
-def _buscar_formula_cache(codigo_num, codigo_den, inicio, fim):
-    return client.buscar_razao(codigo_num, codigo_den, inicio=inicio, fim=fim)
-
-
 @st.cache_data(ttl=3600, show_spinner="Buscando dados no IBGE...")
 def _buscar_ibge_cache(tabela, variavel, inicio, fim):
     return ibge_client.buscar_serie(tabela, variavel, inicio=inicio, fim=fim)
 
 
 def _buscar_indicador(s, inicio):
-    """Busca a série de um indicador do catálogo: direta (id, BCB), calculada
-    (formula = razão entre duas séries do BCB) ou via IBGE (fonte="ibge")."""
+    """Busca a série de um indicador do catálogo: direta (id, BCB) ou via IBGE (fonte="ibge")."""
     if s.get("fonte") == "ibge":
         return _buscar_ibge_cache(s["tabela"], s["variavel"], inicio, None)
-    if "formula" in s:
-        num, den = s["formula"]
-        return _buscar_formula_cache(num, den, inicio, None)
     return _buscar_serie_cache(s["id"], inicio, None)
 
 
 def _url_indicador(s):
     if s.get("fonte") == "ibge":
         return ibge_client.url_serie(s["tabela"])
-    codigo_referencia = s["formula"][0] if "formula" in s else s["id"]
-    return series_catalog.url_serie(codigo_referencia)
+    return series_catalog.url_serie(s["id"])
 
 
 @st.cache_data(ttl=3600, show_spinner="Pesquisando séries...")
@@ -197,49 +187,56 @@ with aba_overview:
 
     st.divider()
 
+    COLUNAS_POR_LINHA = 3
     for categoria, series in series_catalog.CATALOGO.items():
         st.subheader(categoria)
-        cols = st.columns(len(series))
-        for col, s in zip(cols, series):
-            with col:
-                try:
-                    serie = _buscar_indicador(s, inicio).dropna()
-                except Exception as e:
-                    st.error(f"Erro ao buscar {s['id']}: {e}")
-                    continue
-                if serie.empty:
-                    st.warning(f"Sem dados para {s['id']}")
-                    continue
+        linhas = [
+            series[i : i + COLUNAS_POR_LINHA]
+            for i in range(0, len(series), COLUNAS_POR_LINHA)
+        ]
+        for linha in linhas:
+            cols = st.columns(COLUNAS_POR_LINHA)
+            for col, s in zip(cols, linha):
+                with col:
+                    try:
+                        serie = _buscar_indicador(s, inicio).dropna()
+                    except Exception as e:
+                        st.error(f"Erro ao buscar {s['id']}: {e}")
+                        continue
+                    if serie.empty:
+                        st.warning(f"Sem dados para {s['id']}")
+                        continue
 
-                unidade = s.get("unidade", {})
-                st.markdown(f"**{s['nome']}**")
-                ultimo = serie.iloc[-1]
-                anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
-                st.metric(
-                    label="",
-                    value=formatos.formatar_valor(ultimo, unidade),
-                    delta=formatos.formatar_delta(ultimo - anterior, unidade),
-                    label_visibility="collapsed",
-                )
-                st.caption(f"📅 Dado de: {serie.index[-1].strftime('%d/%m/%Y')}")
-                st.plotly_chart(
-                    _grafico_linha(serie),
-                    use_container_width=True,
-                    key=f"chart_br_{s['id']}",
-                )
-                nota_texto = f"{s['nota']} · " if s["nota"] else ""
-                st.caption(f"{nota_texto}Unidade: {formatos.badge_unidade(unidade)}")
-                st.caption(f"[Ver dados brutos ↗]({_url_indicador(s)})")
-                if st.button("➕ Adicionar à exportação", key=f"add_br_{s['id']}"):
-                    st.session_state.selecionadas_br[str(s["id"])] = {
-                        "nome": s["nome"],
-                        "serie": serie,
-                        "nota": s["nota"],
-                        "url": _url_indicador(s),
-                        "categoria": categoria,
-                        "unidade": unidade,
-                    }
-                    st.rerun()
+                    unidade = s.get("unidade", {})
+                    st.markdown(f"**{s['nome']}**")
+                    ultimo = serie.iloc[-1]
+                    anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
+                    st.metric(
+                        label="",
+                        value=formatos.formatar_valor(ultimo, unidade),
+                        delta=formatos.formatar_delta(ultimo - anterior, unidade),
+                        label_visibility="collapsed",
+                    )
+                    st.caption(f"📅 Dado de: {serie.index[-1].strftime('%d/%m/%Y')}")
+                    st.plotly_chart(
+                        _grafico_linha(serie, altura=220),
+                        use_container_width=True,
+                        key=f"chart_br_{s['id']}",
+                    )
+                    nota_texto = f"{s['nota']} · " if s["nota"] else ""
+                    st.caption(f"{nota_texto}Unidade: {formatos.badge_unidade(unidade)}")
+                    st.caption(f"[Ver dados brutos ↗]({_url_indicador(s)})")
+                    if st.button("➕ Adicionar à exportação", key=f"add_br_{s['id']}"):
+                        st.session_state.selecionadas_br[str(s["id"])] = {
+                            "nome": s["nome"],
+                            "serie": serie,
+                            "nota": s["nota"],
+                            "url": _url_indicador(s),
+                            "categoria": categoria,
+                            "unidade": unidade,
+                        }
+                        st.rerun()
+        st.divider()
 
 with aba_explorador:
     st.subheader("Pesquisar qualquer série do Banco Central")

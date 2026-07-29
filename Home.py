@@ -175,57 +175,64 @@ with aba_overview:
 
     st.divider()
 
+    COLUNAS_POR_LINHA = 3
     for categoria, series in CATALOGO.items():
         st.subheader(categoria)
-        cols = st.columns(len(series))
-        for col, s in zip(cols, series):
-            with col:
-                e_indice = s.get("tipo") == "indice"
-                try:
-                    serie_exibida = _buscar_serie_cache(
-                        s["id"], inicio, None, "pc1" if e_indice else None
-                    ).dropna()
-                except Exception as e:
-                    st.error(f"Erro ao buscar {s['id']}: {e}")
-                    continue
-                if serie_exibida.empty:
-                    st.warning(f"Sem dados para {s['id']}")
-                    continue
+        linhas = [
+            series[i : i + COLUNAS_POR_LINHA]
+            for i in range(0, len(series), COLUNAS_POR_LINHA)
+        ]
+        for linha in linhas:
+            cols = st.columns(COLUNAS_POR_LINHA)
+            for col, s in zip(cols, linha):
+                with col:
+                    e_indice = s.get("tipo") == "indice"
+                    try:
+                        serie_exibida = _buscar_serie_cache(
+                            s["id"], inicio, None, "pc1" if e_indice else None
+                        ).dropna()
+                    except Exception as e:
+                        st.error(f"Erro ao buscar {s['id']}: {e}")
+                        continue
+                    if serie_exibida.empty:
+                        st.warning(f"Sem dados para {s['id']}")
+                        continue
 
-                unidade = s.get("unidade", {})
-                legenda = (
-                    "Variação % vs. 12 meses atrás (units=pc1, cálculo oficial do FRED)"
-                    if e_indice
-                    else s["nota"]
-                )
+                    unidade = s.get("unidade", {})
+                    legenda = (
+                        "Variação % vs. 12 meses atrás (units=pc1, cálculo oficial do FRED)"
+                        if e_indice
+                        else s["nota"]
+                    )
 
-                st.markdown(f"**{s['nome']}**")
-                ultimo = serie_exibida.iloc[-1]
-                anterior = serie_exibida.iloc[-2] if len(serie_exibida) > 1 else ultimo
-                st.metric(
-                    label="",
-                    value=formatos.formatar_valor(ultimo, unidade),
-                    delta=formatos.formatar_delta(ultimo - anterior, unidade),
-                    label_visibility="collapsed",
-                )
-                st.caption(f"📅 Dado de: {serie_exibida.index[-1].strftime('%d/%m/%Y')}")
-                st.plotly_chart(
-                    _grafico_linha(serie_exibida),
-                    use_container_width=True,
-                    key=f"chart_{s['id']}",
-                )
-                st.caption(f"{legenda} · Unidade: {formatos.badge_unidade(unidade)}")
-                st.caption(f"[Ver no FRED ↗]({url_serie(s['id'])})")
-                if st.button("➕ Adicionar à exportação", key=f"add_{s['id']}"):
-                    st.session_state.selecionadas[s["id"]] = {
-                        "nome": s["nome"],
-                        "serie": serie_exibida,
-                        "nota": legenda,
-                        "url": url_serie(s["id"]),
-                        "unidade": unidade,
-                        "categoria": categoria,
-                    }
-                    st.rerun()
+                    st.markdown(f"**{s['nome']}**")
+                    ultimo = serie_exibida.iloc[-1]
+                    anterior = serie_exibida.iloc[-2] if len(serie_exibida) > 1 else ultimo
+                    st.metric(
+                        label="",
+                        value=formatos.formatar_valor(ultimo, unidade),
+                        delta=formatos.formatar_delta(ultimo - anterior, unidade),
+                        label_visibility="collapsed",
+                    )
+                    st.caption(f"📅 Dado de: {serie_exibida.index[-1].strftime('%d/%m/%Y')}")
+                    st.plotly_chart(
+                        _grafico_linha(serie_exibida, altura=220),
+                        use_container_width=True,
+                        key=f"chart_{s['id']}",
+                    )
+                    st.caption(f"{legenda} · Unidade: {formatos.badge_unidade(unidade)}")
+                    st.caption(f"[Ver no FRED ↗]({url_serie(s['id'])})")
+                    if st.button("➕ Adicionar à exportação", key=f"add_{s['id']}"):
+                        st.session_state.selecionadas[s["id"]] = {
+                            "nome": s["nome"],
+                            "serie": serie_exibida,
+                            "nota": legenda,
+                            "url": url_serie(s["id"]),
+                            "unidade": unidade,
+                            "categoria": categoria,
+                        }
+                        st.rerun()
+        st.divider()
 
 with aba_explorador:
     st.subheader("Pesquisar qualquer série do FRED")
