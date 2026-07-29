@@ -21,7 +21,7 @@ def exportar_excel(series_selecionadas: dict, caminho_saida: str, rotulo_codigo:
     wb = Workbook()
     resumo = wb.active
     resumo.title = "Resumo"
-    resumo.append(["Indicador", rotulo_codigo, "Última Data", "Último Valor", "Nota", "Link"])
+    resumo.append(["Indicador", rotulo_codigo, "Última Data", "Último Valor", "Unidade", "Nota", "Link"])
     for celula in resumo[1]:
         celula.font = Font(bold=True)
 
@@ -30,15 +30,18 @@ def exportar_excel(series_selecionadas: dict, caminho_saida: str, rotulo_codigo:
         nome = dados.get("nome", series_id)
         nota = dados.get("nota", "")
         url = dados.get("url", "")
+        unidade_badge = dados.get("unidade", {}).get("badge", "")
 
         if not serie.empty:
             ultima_data = serie.index[-1].strftime("%Y-%m-%d")
             ultimo_valor = float(serie.iloc[-1])
         else:
             ultima_data, ultimo_valor = "", None
-        resumo.append([nome, series_id, ultima_data, ultimo_valor, nota, "Ver fonte" if url else ""])
+        resumo.append(
+            [nome, series_id, ultima_data, ultimo_valor, unidade_badge, nota, "Ver fonte" if url else ""]
+        )
         if url:
-            celula_link = resumo.cell(row=resumo.max_row, column=6)
+            celula_link = resumo.cell(row=resumo.max_row, column=7)
             celula_link.hyperlink = url
             celula_link.font = Font(color="0563C1", underline="single")
 

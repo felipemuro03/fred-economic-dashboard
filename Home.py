@@ -9,7 +9,7 @@ import streamlit as st
 RAIZ_PROJETO = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ_PROJETO))
 
-from fred_lib import client, excel_export, html_export
+from fred_lib import client, excel_export, formatos, html_export
 from fred_lib.series_catalog import CATALOGO, listar_destaques, url_serie
 
 st.set_page_config(page_title="Cenário Econômico EUA", layout="wide", page_icon="📊")
@@ -82,6 +82,16 @@ def _pesquisar_cache(termo):
     return client.pesquisar_series(termo)
 
 
+def _inferir_unidade(texto_unidade: str) -> dict:
+    """Melhor esforço pra séries do Explorador, que não estão no catálogo curado."""
+    texto = (texto_unidade or "").lower()
+    if "percent" in texto:
+        return {"badge": texto_unidade, "tipo": "percentual"}
+    if "dollar" in texto:
+        return {"badge": texto_unidade, "tipo": "moeda", "simbolo": "US$"}
+    return {"badge": texto_unidade or "Número", "tipo": "numero"}
+
+
 def _grafico_linha(serie, altura=150):
     fig = go.Figure(
         go.Scatter(x=serie.index, y=serie.values, mode="lines", line=dict(color=GOLD_ESCURO, width=2))
@@ -141,22 +151,23 @@ with aba_overview:
             continue
         if serie.empty:
             continue
-        sufixo = "%" if e_indice else ""
+        unidade = s.get("unidade", {})
         ultimo = serie.iloc[-1]
         anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
         linhas_resumo.append(
             {
                 "Indicador": s["nome"],
                 "Categoria": s["categoria"],
-                "Valor": f"{ultimo:,.2f}{sufixo}",
-                "Variação": ultimo - anterior,
+                "Unidade": formatos.badge_unidade(unidade),
+                "Valor": formatos.formatar_valor(ultimo, unidade),
+                "Variação": formatos.formatar_delta(ultimo - anterior, unidade),
             }
         )
 
     if linhas_resumo:
         df_resumo = pd.DataFrame(linhas_resumo)
-        estilo = df_resumo.style.format({"Variação": "{:+,.2f}"}).map(
-            lambda v: f"color: {'#1E7D32' if v >= 0 else '#C62828'}; font-weight: 600",
+        estilo = df_resumo.style.map(
+            lambda v: f"color: {'#1E7D32' if not str(v).startswith('-') else '#C62828'}; font-weight: 600",
             subset=["Variação"],
         )
         st.dataframe(estilo, use_container_width=True, hide_index=True)
@@ -180,7 +191,7 @@ with aba_overview:
                     st.warning(f"Sem dados para {s['id']}")
                     continue
 
-                sufixo = "%" if e_indice else ""
+                unidade = s.get("unidade", {})
                 legenda = (
                     "Variação % vs. 12 meses atrás (units=pc1, cálculo oficial do FRED)"
                     if e_indice
@@ -192,8 +203,8 @@ with aba_overview:
                 anterior = serie_exibida.iloc[-2] if len(serie_exibida) > 1 else ultimo
                 st.metric(
                     label="",
-                    value=f"{ultimo:,.2f}{sufixo}",
-                    delta=f"{ultimo - anterior:,.2f}",
+                    value=formatos.formatar_valor(ultimo, unidade),
+                    delta=formatos.formatar_delta(ultimo - anterior, unidade),
                     label_visibility="collapsed",
                 )
                 st.plotly_chart(
@@ -201,7 +212,7 @@ with aba_overview:
                     use_container_width=True,
                     key=f"chart_{s['id']}",
                 )
-                st.caption(legenda)
+                st.caption(f"{legenda} · Unidade: {formatos.badge_unidade(unidade)}")
                 st.caption(f"[Ver no FRED ↗]({url_serie(s['id'])})")
                 if st.button("➕ Adicionar à exportação", key=f"add_{s['id']}"):
                     st.session_state.selecionadas[s["id"]] = {
@@ -209,6 +220,8 @@ with aba_overview:
                         "serie": serie_exibida,
                         "nota": legenda,
                         "url": url_serie(s["id"]),
+                        "unidade": unidade,
+                        "categoria": categoria,
                     }
                     st.rerun()
 
@@ -252,6 +265,7 @@ with aba_explorador:
                                 "serie": serie,
                                 "nota": linha.get("units", ""),
                                 "url": url_serie(series_id),
+                                "unidade": _inferir_unidade(linha.get("units", "")),
                             }
                             st.success("Adicionado à exportação.")
 
@@ -286,6 +300,7 @@ with aba_exportar:
                         "nota": legenda,
                         "url": url_serie(s["id"]),
                         "categoria": categoria,
+                        "unidade": s.get("unidade", {}),
                     }
 
         caminho = RAIZ_PROJETO / "cenario_economico_eua.html"

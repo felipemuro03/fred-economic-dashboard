@@ -4,6 +4,8 @@ from pathlib import Path
 import plotly.graph_objects as go
 import plotly.offline as pyo
 
+from . import formatos
+
 NAVY = "#102134"
 GOLD = "#BAA377"
 GOLD_ESCURO = "#896F3D"
@@ -70,18 +72,22 @@ def _card_html(dados: dict) -> str:
     nome = dados.get("nome", "")
     nota = dados.get("nota", "")
     url = dados.get("url", "")
+    unidade = dados.get("unidade", {})
     serie = dados["serie"].dropna()
     ultimo = serie.iloc[-1]
     data_ultima = serie.index[-1].strftime("%m/%Y")
     grafico = _grafico_html(serie)
+    valor_fmt = formatos.formatar_valor(ultimo, unidade)
+    badge = formatos.badge_unidade(unidade)
+    meta_texto = f"{nota} · {badge}" if nota else badge
     link_html = (
-        f'<a href="{url}" target="_blank" rel="noopener">Ver no FRED ↗</a>' if url else ""
+        f'<a href="{url}" target="_blank" rel="noopener">Ver fonte ↗</a>' if url else ""
     )
     return f"""
         <section class="card">
             <h3>{nome}</h3>
-            <div class="meta">{nota}</div>
-            <div class="valor">{ultimo:,.2f}<span class="valor-data">último dado: {data_ultima}</span></div>
+            <div class="meta">{meta_texto}</div>
+            <div class="valor">{valor_fmt}<span class="valor-data">último dado: {data_ultima}</span></div>
             {grafico}
             <div class="link">{link_html}</div>
         </section>

@@ -10,7 +10,7 @@ RAIZ_PROJETO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ_PROJETO))
 
 from bcb_lib import client, series_catalog
-from fred_lib import excel_export, html_export
+from fred_lib import excel_export, formatos, html_export
 
 st.set_page_config(page_title="Cenário Econômico Brasil", layout="wide", page_icon="🇧🇷")
 
@@ -127,21 +127,23 @@ with aba_overview:
             continue
         if serie.empty:
             continue
+        unidade = s.get("unidade", {})
         ultimo = serie.iloc[-1]
         anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
         linhas_resumo.append(
             {
                 "Indicador": s["nome"],
                 "Categoria": s["categoria"],
-                "Valor": f"{ultimo:,.2f}",
-                "Variação": ultimo - anterior,
+                "Unidade": formatos.badge_unidade(unidade),
+                "Valor": formatos.formatar_valor(ultimo, unidade),
+                "Variação": formatos.formatar_delta(ultimo - anterior, unidade),
             }
         )
 
     if linhas_resumo:
         df_resumo = pd.DataFrame(linhas_resumo)
-        estilo = df_resumo.style.format({"Variação": "{:+,.2f}"}).map(
-            lambda v: f"color: {'#1E7D32' if v >= 0 else '#C62828'}; font-weight: 600",
+        estilo = df_resumo.style.map(
+            lambda v: f"color: {'#1E7D32' if not str(v).startswith('-') else '#C62828'}; font-weight: 600",
             subset=["Variação"],
         )
         st.dataframe(estilo, use_container_width=True, hide_index=True)
@@ -162,13 +164,14 @@ with aba_overview:
                     st.warning(f"Sem dados para {s['id']}")
                     continue
 
+                unidade = s.get("unidade", {})
                 st.markdown(f"**{s['nome']}**")
                 ultimo = serie.iloc[-1]
                 anterior = serie.iloc[-2] if len(serie) > 1 else ultimo
                 st.metric(
                     label="",
-                    value=f"{ultimo:,.2f}",
-                    delta=f"{ultimo - anterior:,.2f}",
+                    value=formatos.formatar_valor(ultimo, unidade),
+                    delta=formatos.formatar_delta(ultimo - anterior, unidade),
                     label_visibility="collapsed",
                 )
                 st.plotly_chart(
@@ -176,7 +179,8 @@ with aba_overview:
                     use_container_width=True,
                     key=f"chart_br_{s['id']}",
                 )
-                st.caption(s["nota"])
+                nota_texto = f"{s['nota']} · " if s["nota"] else ""
+                st.caption(f"{nota_texto}Unidade: {formatos.badge_unidade(unidade)}")
                 st.caption(f"[Ver dados brutos ↗]({series_catalog.url_serie(s['id'])})")
                 if st.button("➕ Adicionar à exportação", key=f"add_br_{s['id']}"):
                     st.session_state.selecionadas_br[str(s["id"])] = {
@@ -185,6 +189,7 @@ with aba_overview:
                         "nota": s["nota"],
                         "url": series_catalog.url_serie(s["id"]),
                         "categoria": categoria,
+                        "unidade": unidade,
                     }
                     st.rerun()
 
@@ -253,6 +258,7 @@ with aba_exportar:
                         "nota": s["nota"],
                         "url": series_catalog.url_serie(s["id"]),
                         "categoria": categoria,
+                        "unidade": s.get("unidade", {}),
                     }
 
         caminho = RAIZ_PROJETO / "cenario_economico_brasil.html"
