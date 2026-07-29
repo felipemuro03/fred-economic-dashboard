@@ -15,8 +15,10 @@ CATALOGO = {
         {"id": 432, "nome": "Meta Selic definida pelo Copom", "nota": "% a.a.", "destaque": True, "unidade": _PCT},
     ],
     "Inflação": [
-        {"id": 433, "nome": "IPCA - variação mensal", "nota": "% no mês", "unidade": _PCT},
-        {"id": 13522, "nome": "IPCA - acumulado 12 meses", "nota": "%", "destaque": True, "unidade": _PCT},
+        {"id": "ipca_mensal_ibge", "fonte": "ibge", "tabela": 1737, "variavel": 63, "nome": "IPCA - Variação Mensal", "nota": "Fonte: IBGE (oficial)", "unidade": _PCT},
+        {"id": "ipca_12m_ibge", "fonte": "ibge", "tabela": 1737, "variavel": 2265, "nome": "IPCA - Acumulado 12 Meses", "nota": "Fonte: IBGE (oficial)", "destaque": True, "unidade": _PCT},
+        {"id": "ipca15_mensal_ibge", "fonte": "ibge", "tabela": 3065, "variavel": 355, "nome": "IPCA-15 - Variação Mensal (prévia)", "nota": "Fonte: IBGE (oficial) — prévia do IPCA, sai ~10 dias antes", "destaque": True, "unidade": _PCT},
+        {"id": "ipca15_12m_ibge", "fonte": "ibge", "tabela": 3065, "variavel": 1120, "nome": "IPCA-15 - Acumulado 12 Meses (prévia)", "nota": "Fonte: IBGE (oficial) — prévia do IPCA", "unidade": _PCT},
         {"id": 189, "nome": "IGP-M - variação mensal", "nota": "% no mês", "unidade": _PCT},
         {"id": 7478, "nome": "INPC - variação mensal", "nota": "% no mês", "unidade": _PCT},
     ],
@@ -33,6 +35,9 @@ CATALOGO = {
         {"id": 20622, "nome": "Saldo da Carteira de Crédito em Relação ao PIB", "nota": "", "unidade": _PCT_PIB},
         {"id": 21082, "nome": "Inadimplência da Carteira de Crédito - Total", "nota": "Atraso acima de 90 dias", "unidade": _PCT},
         {"id": 29034, "nome": "Comprometimento de Renda das Famílias com Serviço da Dívida", "nota": "Com ajuste sazonal", "unidade": _PCT},
+        {"id": 4177, "nome": "Dívida Mobiliária Federal - Participação Over/Selic", "nota": "% da dívida em carteira, por indexador", "destaque": True, "unidade": _PCT},
+        {"id": 4178, "nome": "Dívida Mobiliária Federal - Participação Prefixado", "nota": "% da dívida em carteira, por indexador", "destaque": True, "unidade": _PCT},
+        {"id": "ntnb_ipca_pct", "nome": "Dívida Mobiliária Federal - Participação IPCA (NTN-B)", "nota": "Calculado: saldo NTN-B (10642) ÷ saldo total em mercado (4154) — o BCB não publica um % pronto para esse indexador na série de participação", "formula": (10642, 4154), "destaque": True, "unidade": _PCT},
     ],
     "Externo": [
         {"id": 13621, "nome": "Reservas Internacionais", "nota": "Conceito caixa", "unidade": _USD_MI},

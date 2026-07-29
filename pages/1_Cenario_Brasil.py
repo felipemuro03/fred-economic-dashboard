@@ -11,6 +11,7 @@ sys.path.insert(0, str(RAIZ_PROJETO))
 
 from bcb_lib import client, series_catalog
 from fred_lib import excel_export, formatos, html_export
+from ibge_lib import client as ibge_client
 
 st.set_page_config(page_title="Cenário Econômico Brasil", layout="wide", page_icon="🇧🇷")
 
@@ -69,6 +70,34 @@ if "selecionadas_br" not in st.session_state:
 @st.cache_data(ttl=3600, show_spinner="Buscando dados no Banco Central...")
 def _buscar_serie_cache(codigo, inicio, fim):
     return client.buscar_serie(codigo, inicio=inicio, fim=fim)
+
+
+@st.cache_data(ttl=3600, show_spinner="Calculando indicador...")
+def _buscar_formula_cache(codigo_num, codigo_den, inicio, fim):
+    return client.buscar_razao(codigo_num, codigo_den, inicio=inicio, fim=fim)
+
+
+@st.cache_data(ttl=3600, show_spinner="Buscando dados no IBGE...")
+def _buscar_ibge_cache(tabela, variavel, inicio, fim):
+    return ibge_client.buscar_serie(tabela, variavel, inicio=inicio, fim=fim)
+
+
+def _buscar_indicador(s, inicio):
+    """Busca a série de um indicador do catálogo: direta (id, BCB), calculada
+    (formula = razão entre duas séries do BCB) ou via IBGE (fonte="ibge")."""
+    if s.get("fonte") == "ibge":
+        return _buscar_ibge_cache(s["tabela"], s["variavel"], inicio, None)
+    if "formula" in s:
+        num, den = s["formula"]
+        return _buscar_formula_cache(num, den, inicio, None)
+    return _buscar_serie_cache(s["id"], inicio, None)
+
+
+def _url_indicador(s):
+    if s.get("fonte") == "ibge":
+        return ibge_client.url_serie(s["tabela"])
+    codigo_referencia = s["formula"][0] if "formula" in s else s["id"]
+    return series_catalog.url_serie(codigo_referencia)
 
 
 @st.cache_data(ttl=3600, show_spinner="Pesquisando séries...")
@@ -139,7 +168,7 @@ with aba_overview:
     linhas_resumo = []
     for s in series_catalog.listar_destaques():
         try:
-            serie = _buscar_serie_cache(s["id"], inicio, None).dropna()
+            serie = _buscar_indicador(s, inicio).dropna()
         except Exception:
             continue
         if serie.empty:
@@ -174,7 +203,7 @@ with aba_overview:
         for col, s in zip(cols, series):
             with col:
                 try:
-                    serie = _buscar_serie_cache(s["id"], inicio, None).dropna()
+                    serie = _buscar_indicador(s, inicio).dropna()
                 except Exception as e:
                     st.error(f"Erro ao buscar {s['id']}: {e}")
                     continue
@@ -200,13 +229,13 @@ with aba_overview:
                 )
                 nota_texto = f"{s['nota']} · " if s["nota"] else ""
                 st.caption(f"{nota_texto}Unidade: {formatos.badge_unidade(unidade)}")
-                st.caption(f"[Ver dados brutos ↗]({series_catalog.url_serie(s['id'])})")
+                st.caption(f"[Ver dados brutos ↗]({_url_indicador(s)})")
                 if st.button("➕ Adicionar à exportação", key=f"add_br_{s['id']}"):
                     st.session_state.selecionadas_br[str(s["id"])] = {
                         "nome": s["nome"],
                         "serie": serie,
                         "nota": s["nota"],
-                        "url": series_catalog.url_serie(s["id"]),
+                        "url": _url_indicador(s),
                         "categoria": categoria,
                         "unidade": unidade,
                     }
@@ -303,7 +332,7 @@ with aba_exportar:
             for categoria, series in series_catalog.CATALOGO.items():
                 for s in series:
                     try:
-                        serie = _buscar_serie_cache(s["id"], inicio, None).dropna()
+                        serie = _buscar_indicador(s, inicio).dropna()
                     except Exception:
                         continue
                     if serie.empty:
@@ -312,7 +341,7 @@ with aba_exportar:
                         "nome": s["nome"],
                         "serie": serie,
                         "nota": s["nota"],
-                        "url": series_catalog.url_serie(s["id"]),
+                        "url": _url_indicador(s),
                         "categoria": categoria,
                         "unidade": s.get("unidade", {}),
                     }

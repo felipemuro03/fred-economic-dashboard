@@ -28,6 +28,19 @@ def buscar_serie(codigo, inicio=None, fim=None) -> pd.Series:
     return df.set_index("data")["valor"]
 
 
+def buscar_razao(codigo_numerador, codigo_denominador, inicio=None, fim=None) -> pd.Series:
+    """Calcula (série_numerador / série_denominador) * 100, alinhando pelas datas
+    em comum entre as duas séries.
+
+    Útil quando o BCB não publica um percentual pronto para algo (ex: participação
+    da dívida indexada ao IPCA/NTN-B na dívida mobiliária federal total).
+    """
+    numerador = buscar_serie(codigo_numerador, inicio, fim)
+    denominador = buscar_serie(codigo_denominador, inicio, fim)
+    datas_comuns = numerador.index.intersection(denominador.index)
+    return (numerador.loc[datas_comuns] / denominador.loc[datas_comuns]) * 100
+
+
 def pesquisar_series(termo: str, limite: int = 20) -> list:
     """Pesquisa séries do SGS por palavra-chave, via o portal de dados abertos do BCB.
 
