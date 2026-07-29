@@ -88,7 +88,13 @@ def _card_html(dados: dict) -> str:
         """
 
 
-def exportar_html(series_por_indicador: dict, caminho_saida: str, gerado_em: str) -> str:
+def exportar_html(
+    series_por_indicador: dict,
+    caminho_saida: str,
+    gerado_em: str,
+    titulo: str = "Cenário Econômico dos EUA",
+    fonte: str = "FRED (Federal Reserve Economic Data)",
+) -> str:
     """
     series_por_indicador: dict no formato
         {series_id: {"nome": str, "serie": pandas.Series, "nota": str, "url": str,
@@ -133,7 +139,7 @@ def exportar_html(series_por_indicador: dict, caminho_saida: str, gerado_em: str
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cenário Econômico dos EUA</title>
+<title>{titulo}</title>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
 
@@ -258,8 +264,8 @@ def exportar_html(series_por_indicador: dict, caminho_saida: str, gerado_em: str
 <header class="hero">
     {logo_html}
     <div>
-        <h1>Cenário Econômico dos EUA</h1>
-        <div class="sub">Gerado em {gerado_em} · Fonte: FRED (Federal Reserve Economic Data)</div>
+        <h1>{titulo}</h1>
+        <div class="sub">Gerado em {gerado_em} · Fonte: {fonte}</div>
     </div>
 </header>
 <nav>{"".join(nav_links)}</nav>

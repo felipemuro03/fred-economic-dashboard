@@ -11,7 +11,7 @@ def _nome_aba_valido(nome: str) -> str:
     return limpo[:31]
 
 
-def exportar_excel(series_selecionadas: dict, caminho_saida: str):
+def exportar_excel(series_selecionadas: dict, caminho_saida: str, rotulo_codigo: str = "Código"):
     """
     series_selecionadas: dict no formato
         {series_id: {"nome": str, "serie": pandas.Series, "nota": str}}
@@ -21,7 +21,7 @@ def exportar_excel(series_selecionadas: dict, caminho_saida: str):
     wb = Workbook()
     resumo = wb.active
     resumo.title = "Resumo"
-    resumo.append(["Indicador", "Série (FRED)", "Última Data", "Último Valor", "Nota", "Link"])
+    resumo.append(["Indicador", rotulo_codigo, "Última Data", "Último Valor", "Nota", "Link"])
     for celula in resumo[1]:
         celula.font = Font(bold=True)
 
@@ -36,7 +36,7 @@ def exportar_excel(series_selecionadas: dict, caminho_saida: str):
             ultimo_valor = float(serie.iloc[-1])
         else:
             ultima_data, ultimo_valor = "", None
-        resumo.append([nome, series_id, ultima_data, ultimo_valor, nota, "Ver no FRED" if url else ""])
+        resumo.append([nome, series_id, ultima_data, ultimo_valor, nota, "Ver fonte" if url else ""])
         if url:
             celula_link = resumo.cell(row=resumo.max_row, column=6)
             celula_link.hyperlink = url

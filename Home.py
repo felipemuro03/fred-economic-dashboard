@@ -313,7 +313,9 @@ with aba_exportar:
 
         if st.button("Gerar Excel"):
             caminho = RAIZ_PROJETO / "cenario_economico_eua.xlsx"
-            excel_export.exportar_excel(st.session_state.selecionadas, str(caminho))
+            excel_export.exportar_excel(
+                st.session_state.selecionadas, str(caminho), rotulo_codigo="Série (FRED)"
+            )
             with open(caminho, "rb") as f:
                 st.download_button(
                     "⬇️ Baixar Excel", f, file_name="cenario_economico_eua.xlsx"
