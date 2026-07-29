@@ -137,6 +137,7 @@ with aba_overview:
                 "Unidade": formatos.badge_unidade(unidade),
                 "Valor": formatos.formatar_valor(ultimo, unidade),
                 "Variação": formatos.formatar_delta(ultimo - anterior, unidade),
+                "Dado de": serie.index[-1].strftime("%d/%m/%Y"),
             }
         )
 
@@ -174,6 +175,7 @@ with aba_overview:
                     delta=formatos.formatar_delta(ultimo - anterior, unidade),
                     label_visibility="collapsed",
                 )
+                st.caption(f"📅 Dado de: {serie.index[-1].strftime('%d/%m/%Y')}")
                 st.plotly_chart(
                     _grafico_linha(serie),
                     use_container_width=True,
