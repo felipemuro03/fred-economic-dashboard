@@ -1,8 +1,28 @@
+import time
+
 import pandas as pd
 import requests
 
 _BASE_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados"
 _BUSCA_URL = "https://dadosabertos.bcb.gov.br/api/3/action/package_search"
+_TIMEOUT = 40
+_TENTATIVAS = 3
+
+
+def _get_com_retentativas(url, params):
+    """A API do BCB às vezes demora ou falha passageiramente (mais comum a
+    partir de servidores na nuvem) — tenta de novo antes de desistir."""
+    ultimo_erro = None
+    for tentativa in range(_TENTATIVAS):
+        try:
+            resposta = requests.get(url, params=params, timeout=_TIMEOUT)
+            resposta.raise_for_status()
+            return resposta
+        except requests.exceptions.RequestException as erro:
+            ultimo_erro = erro
+            if tentativa < _TENTATIVAS - 1:
+                time.sleep(2)
+    raise ultimo_erro
 
 
 def buscar_serie(codigo, inicio=None, fim=None) -> pd.Series:
@@ -16,8 +36,7 @@ def buscar_serie(codigo, inicio=None, fim=None) -> pd.Series:
     if fim:
         params["dataFinal"] = fim.strftime("%d/%m/%Y")
 
-    resposta = requests.get(_BASE_URL.format(codigo=codigo), params=params, timeout=20)
-    resposta.raise_for_status()
+    resposta = _get_com_retentativas(_BASE_URL.format(codigo=codigo), params)
     dados = resposta.json()
     if not dados:
         return pd.Series(dtype=float)
@@ -48,10 +67,7 @@ def pesquisar_series(termo: str, limite: int = 20) -> list:
     Datasets do portal que não correspondem a uma série numérica simples do SGS
     (sem "codigo_sgs" nos metadados) são descartados.
     """
-    resposta = requests.get(
-        _BUSCA_URL, params={"q": termo, "rows": limite}, timeout=20
-    )
-    resposta.raise_for_status()
+    resposta = _get_com_retentativas(_BUSCA_URL, {"q": termo, "rows": limite})
     corpo = resposta.json()
     if not corpo.get("success"):
         return []

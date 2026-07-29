@@ -1,7 +1,11 @@
+import time
+
 import pandas as pd
 import requests
 
 _VALUES_URL = "https://apisidra.ibge.gov.br/values/t/{tabela}/n1/all/v/{variavel}/p/all"
+_TIMEOUT = 40
+_TENTATIVAS = 3
 
 _MESES = {
     "janeiro": 1,
@@ -24,8 +28,20 @@ def buscar_serie(tabela, variavel, inicio=None, fim=None) -> pd.Series:
     tabela do SIDRA/IBGE (API pública, sem necessidade de chave).
     """
     url = _VALUES_URL.format(tabela=tabela, variavel=variavel)
-    resposta = requests.get(url, timeout=30)
-    resposta.raise_for_status()
+    ultimo_erro = None
+    resposta = None
+    for tentativa in range(_TENTATIVAS):
+        try:
+            resposta = requests.get(url, timeout=_TIMEOUT)
+            resposta.raise_for_status()
+            break
+        except requests.exceptions.RequestException as erro:
+            ultimo_erro = erro
+            if tentativa < _TENTATIVAS - 1:
+                time.sleep(2)
+    else:
+        raise ultimo_erro
+
     linhas = resposta.json()[1:]  # a primeira linha é o cabeçalho de colunas
 
     datas, valores = [], []
